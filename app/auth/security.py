@@ -9,7 +9,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
 JWT_ALG = "HS256"
-JWT_EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MIN", "10080"))  # 7 days
+JWT_EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MIN", "1008000"))  # 7 days
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
