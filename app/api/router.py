@@ -12,6 +12,16 @@ from app.api.v1 import competitors  # new
 
 
 api = APIRouter()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],     # GET, POST, OPTIONS, etc
+    allow_headers=["*"],     # Content-Type, Authorization, etc
+)
+
 api.include_router(health, prefix="/v1")
 api.include_router(admin, prefix="/v1")
 api.include_router(catalog, prefix="/v1")
