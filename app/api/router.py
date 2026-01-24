@@ -9,7 +9,7 @@ from app.api.v1.rules import router as rules_router
 from app.api.v1.me import router as me_router
 from app.api.v1.owned_sites import router as owned_sites_router
 from app.api.v1 import competitors
-
+from app.api.v1.notifications import router as notifications_router
 api = APIRouter()
 
 api.include_router(health, prefix="/v1")
@@ -21,3 +21,4 @@ api.include_router(rules_router, prefix="/v1")
 api.include_router(me_router, prefix="/v1", tags=["me"])
 api.include_router(owned_sites_router, prefix="/v1")
 api.include_router(competitors.router, prefix="/v1")
+api.include_router(notifications_router, prefix="/v1", tags=["notifications"])
