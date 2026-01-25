@@ -186,7 +186,7 @@ async def site_search(
     g3: int | None = None,
     g2: int | None = None,
     g1: int | None = None,
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Site)
