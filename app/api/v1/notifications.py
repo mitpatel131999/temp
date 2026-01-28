@@ -31,7 +31,9 @@ async def upsert_expo_token(
     if not token:
         raise HTTPException(status_code=400, detail="expoPushToken required")
 
-    res = await db.execute(select(UserDevice).where(UserDevice.expo_push_token == token))
+    res = await db.execute(
+        select(UserDevice).where(UserDevice.expo_push_token == token)
+    )
     existing = res.scalar_one_or_none()
 
     if existing:
@@ -39,7 +41,14 @@ async def upsert_expo_token(
         existing.kind = "expo"
         existing.is_enabled = True
     else:
-        db.add(UserDevice(user_id=user.id, kind="expo", expo_push_token=token, is_enabled=True))
+        db.add(
+            UserDevice(
+                user_id=user.id,
+                kind="expo",
+                expo_push_token=token,
+                is_enabled=True,
+            )
+        )
 
     await db.commit()
     return {"ok": True}
@@ -64,7 +73,9 @@ async def upsert_webpush(
     if not endpoint:
         raise HTTPException(status_code=400, detail="endpoint required")
 
-    res = await db.execute(select(UserDevice).where(UserDevice.webpush_endpoint == endpoint))
+    res = await db.execute(
+        select(UserDevice).where(UserDevice.webpush_endpoint == endpoint)
+    )
     existing = res.scalar_one_or_none()
 
     if existing:
@@ -106,57 +117,80 @@ async def register_device(
     db: AsyncSession = Depends(get_db),
     me=Depends(get_current_user),
 ):
-    platform = (body.platform or "").strip().lower()
+    platform = body.platform.strip().lower()
 
-    # basic validation
+    # ----------------------------
+    # Validation
+    # ----------------------------
     if platform in ("ios", "android"):
-        if not body.expo_push_token or not body.expo_push_token.strip():
-            raise HTTPException(status_code=400, detail="expo_push_token required for ios/android")
+        if not body.expo_push_token:
+            raise HTTPException(
+                status_code=400,
+                detail="expo_push_token required for ios/android",
+            )
+        device_kind = "expo"
+
     elif platform == "web":
         if not body.web_push_subscription:
-            raise HTTPException(status_code=400, detail="web_push_subscription required for web")
-    else:
-        raise HTTPException(status_code=400, detail="platform must be ios|android|web")
+            raise HTTPException(
+                status_code=400,
+                detail="web_push_subscription required for web",
+            )
+        device_kind = "webpush"
 
-    # Upsert logic: match by (user_id + expo_push_token) OR (user_id + device_id)
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="platform must be ios|android|web",
+        )
+
+    # ----------------------------
+    # Find existing device
+    # ----------------------------
     existing: Optional[UserDevice] = None
 
-    if body.expo_push_token and body.expo_push_token.strip():
+    if body.expo_push_token:
         res = await db.execute(
             select(UserDevice).where(
                 UserDevice.user_id == me.id,
-                UserDevice.expo_push_token == body.expo_push_token.strip(),
+                UserDevice.expo_push_token == body.expo_push_token,
             )
         )
         existing = res.scalars().first()
 
-    if existing is None and body.device_id and body.device_id.strip():
+    if existing is None and body.device_id:
         res = await db.execute(
             select(UserDevice).where(
                 UserDevice.user_id == me.id,
-                UserDevice.device_id == body.device_id.strip(),
+                UserDevice.device_id == body.device_id,
             )
         )
         existing = res.scalars().first()
 
     if existing is None:
-        existing = UserDevice(user_id=me.id)
+        existing = UserDevice(
+            user_id=me.id,
+            kind=device_kind,   # ✅ FIX: SET KIND ON CREATE
+        )
         db.add(existing)
 
-    # set/update fields
-    existing.user_id = me.id
+    # ----------------------------
+    # Update fields
+    # ----------------------------
+    existing.kind = device_kind            # ✅ ALWAYS SET
     existing.platform = platform
+    existing.is_enabled = True
 
-    if body.device_id is not None:
-        existing.device_id = body.device_id.strip() if body.device_id else None
+    if body.device_id:
+        existing.device_id = body.device_id
 
-    if body.app_version is not None:
+    if body.app_version:
         existing.app_version = body.app_version
 
     if body.expo_push_token:
-        existing.expo_push_token = body.expo_push_token.strip()
+        existing.expo_push_token = body.expo_push_token
 
-    if body.web_push_subscription is not None:
+    if body.web_push_subscription:
         existing.web_push_subscription = body.web_push_subscription
 
     await db.commit()
